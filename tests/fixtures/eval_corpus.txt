@@ -1,0 +1,11 @@
+The Great Barrier Reef is the world's largest coral reef system, stretching over 2,300 kilometers off the coast of Queensland, Australia. It is home to thousands of species of marine life, including sea turtles, sharks, and over 1,500 species of fish. Rising ocean temperatures have caused repeated mass coral bleaching events since 1998.
+
+Python was created by Guido van Rossum and first released in 1991. It emphasizes code readability through significant indentation and a design philosophy summarized in "The Zen of Python." Python has become one of the most widely used programming languages for data science, web development, and automation.
+
+The French Revolution began in 1789 and led to the abolition of the monarchy in France. It was driven by widespread economic hardship, resentment of aristocratic privilege, and Enlightenment ideas about liberty and equality. The revolution culminated in the rise of Napoleon Bonaparte a decade later.
+
+Photosynthesis is the process by which plants, algae, and some bacteria convert light energy into chemical energy stored in glucose. It takes place primarily in the chloroplasts of plant cells, using chlorophyll to absorb sunlight. The process releases oxygen as a byproduct, which sustains most life on Earth.
+
+The Great Wall of China is a series of fortifications built across the northern borders of China, with construction spanning centuries starting as early as the 7th century BC. The most well-preserved sections date from the Ming Dynasty. It stretches for thousands of kilometers, though it is a common myth that it is visible from space with the naked eye.
+
+Machine learning is a subset of artificial intelligence in which systems learn patterns from data rather than following explicitly programmed rules. Common approaches include supervised learning, where models learn from labeled examples, and unsupervised learning, which finds structure in unlabeled data. Overfitting occurs when a model memorizes training data instead of generalizing.

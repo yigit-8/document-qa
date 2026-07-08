@@ -94,9 +94,19 @@ curl -X POST http://localhost:8000/ask \
 }
 ```
 
+## Retrieval Evaluation
+
+Generation quality is only as good as the chunks it's grounded in, so retrieval is evaluated on its own: a small multi-topic golden set (`tests/fixtures/`) checks whether the chunk that actually answers each question is among the top-k the retriever returns (recall@k). It runs against real embeddings — no `ANTHROPIC_API_KEY` needed, since generation isn't being evaluated, only retrieval.
+
+```bash
+python -m src.evaluate_retrieval
+```
+
+Currently scores **100% recall@4** on the 6-question golden set. `tests/test_retrieval_eval.py` enforces a minimum of 80% recall@4 in CI, so a change that quietly hurts retrieval (a chunking tweak, a different embedding model) fails the build instead of shipping unnoticed.
+
 ## Running Tests
 
-Tests use mocks so no API key is needed.
+Most tests use mocks so no API key is needed; the retrieval evaluation test uses real embeddings but not the LLM.
 
 ```bash
 pytest tests/ -v

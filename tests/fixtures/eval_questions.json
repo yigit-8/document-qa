@@ -1,0 +1,26 @@
+[
+  {
+    "question": "What has caused repeated coral bleaching events on the world's largest reef?",
+    "expected_keyword": "Great Barrier Reef"
+  },
+  {
+    "question": "Who created the Python programming language?",
+    "expected_keyword": "Guido van Rossum"
+  },
+  {
+    "question": "When did the French Revolution begin?",
+    "expected_keyword": "French Revolution"
+  },
+  {
+    "question": "Where does photosynthesis take place inside a plant cell?",
+    "expected_keyword": "chloroplasts"
+  },
+  {
+    "question": "Which dynasty built the best-preserved sections of the Great Wall of China?",
+    "expected_keyword": "Ming Dynasty"
+  },
+  {
+    "question": "What is it called when a model memorizes training data instead of generalizing?",
+    "expected_keyword": "Overfitting"
+  }
+]
