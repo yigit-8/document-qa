@@ -55,7 +55,7 @@ jobs:
       - name: Push image to GHCR
         if: github.event_name == 'push'
         run: |
-          docker tag document-qa:${{ github.sha }} ghcr.io/yigit-8/document-qa:latest
-          docker tag document-qa:${{ github.sha }} ghcr.io/yigit-8/document-qa:${{ github.sha }}
-          docker push ghcr.io/yigit-8/document-qa:latest
-          docker push ghcr.io/yigit-8/document-qa:${{ github.sha }}
+          docker tag document-qa:${{ github.sha }} ghcr.io/yigitliman/document-qa:latest
+          docker tag document-qa:${{ github.sha }} ghcr.io/yigitliman/document-qa:${{ github.sha }}
+          docker push ghcr.io/yigitliman/document-qa:latest
+          docker push ghcr.io/yigitliman/document-qa:${{ github.sha }}

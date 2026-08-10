@@ -1,6 +1,6 @@
 # Document Q&A
 
-![CI](https://github.com/yigit-8/document-qa/actions/workflows/ci.yml/badge.svg)
+![CI](https://github.com/yigitliman/document-qa/actions/workflows/ci.yml/badge.svg)
 
 A RAG (Retrieval-Augmented Generation) pipeline that lets you upload documents and ask questions about them. Documents are chunked, embedded using a sentence transformer, and stored in ChromaDB. Questions are answered by Claude after retrieving the most relevant chunks.
 
