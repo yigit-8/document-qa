@@ -96,7 +96,7 @@ curl -X POST http://localhost:8000/ask \
 
 ## Retrieval Evaluation
 
-Generation quality is only as good as the chunks it's grounded in, so retrieval is evaluated on its own: a small multi-topic golden set (`tests/fixtures/`) checks whether the chunk that actually answers each question is among the top-k the retriever returns (recall@k). It runs against real embeddings — no `ANTHROPIC_API_KEY` needed, since generation isn't being evaluated, only retrieval.
+Generation quality is only as good as the chunks it's grounded in, so retrieval is evaluated on its own: a small multi-topic golden set (`tests/fixtures/`) checks whether the chunk that actually answers each question is among the top-k the retriever returns (recall@k). It runs against real embeddings, with no `ANTHROPIC_API_KEY` needed, since generation isn't being evaluated, only retrieval.
 
 ```bash
 python -m src.evaluate_retrieval

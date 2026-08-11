@@ -3,7 +3,7 @@ Retrieval evaluation for the RAG pipeline.
 
 Measures recall@k: for each question in the golden set, whether the chunk
 that actually contains the answer was among the top-k chunks the retriever
-returned. This is the metric that matters before generation even happens —
+returned. This is the metric that matters before generation even happens:
 if the retriever misses the right chunk, no LLM can produce a grounded
 answer. Runs against a small multi-topic corpus with real embeddings
 (no ANTHROPIC_API_KEY needed, since generation isn't evaluated here).
@@ -27,7 +27,7 @@ EMBED_MODEL = "sentence-transformers/all-MiniLM-L6-v2"
 
 
 def build_eval_vectorstore() -> Chroma:
-    """In-memory only (no persist_directory) — the eval store is throwaway,
+    """In-memory only (no persist_directory). The eval store is throwaway,
     and skipping disk I/O sidesteps Chroma's file-locking issues on Windows.
     """
     docs = TextLoader(CORPUS_PATH, encoding="utf-8").load()
