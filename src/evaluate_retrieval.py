@@ -20,10 +20,11 @@ from langchain_chroma import Chroma
 from langchain_community.document_loaders import TextLoader
 from langchain_community.embeddings import HuggingFaceEmbeddings
 
+from src.config import CHUNK_OVERLAP, CHUNK_SIZE, DEFAULT_K, EMBED_MODEL
+
 FIXTURES_DIR = os.path.join(os.path.dirname(__file__), "..", "tests", "fixtures")
 CORPUS_PATH = os.path.join(FIXTURES_DIR, "eval_corpus.txt")
 QUESTIONS_PATH = os.path.join(FIXTURES_DIR, "eval_questions.json")
-EMBED_MODEL = "sentence-transformers/all-MiniLM-L6-v2"
 
 
 def build_eval_vectorstore() -> Chroma:
@@ -31,14 +32,14 @@ def build_eval_vectorstore() -> Chroma:
     and skipping disk I/O sidesteps Chroma's file-locking issues on Windows.
     """
     docs = TextLoader(CORPUS_PATH, encoding="utf-8").load()
-    splitter = RecursiveCharacterTextSplitter(chunk_size=500, chunk_overlap=50)
+    splitter = RecursiveCharacterTextSplitter(chunk_size=CHUNK_SIZE, chunk_overlap=CHUNK_OVERLAP)
     chunks = splitter.split_documents(docs)
 
     embeddings = HuggingFaceEmbeddings(model_name=EMBED_MODEL)
     return Chroma.from_documents(chunks, embeddings)
 
 
-def evaluate_recall_at_k(vectorstore: Chroma, k: int = 4) -> dict:
+def evaluate_recall_at_k(vectorstore: Chroma, k: int = DEFAULT_K) -> dict:
     with open(QUESTIONS_PATH, encoding="utf-8") as f:
         golden = json.load(f)
 
@@ -57,7 +58,7 @@ def evaluate_recall_at_k(vectorstore: Chroma, k: int = 4) -> dict:
 
 def main():
     vectorstore = build_eval_vectorstore()
-    report = evaluate_recall_at_k(vectorstore, k=4)
+    report = evaluate_recall_at_k(vectorstore, k=DEFAULT_K)
 
     print(f"Retrieval evaluation (recall@{report['k']}): {report['recall_at_k']:.2%}\n")
     for r in report["results"]:

@@ -12,7 +12,9 @@ Requires ANTHROPIC_API_KEY environment variable.
 """
 
 import os
+import shutil
 import sqlite3
+import tempfile
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, File, HTTPException, UploadFile
@@ -25,10 +27,22 @@ from langchain_community.document_loaders import PyPDFLoader, TextLoader
 from langchain_community.embeddings import HuggingFaceEmbeddings
 from pydantic import BaseModel
 
-CHROMA_DIR = os.path.join(os.path.dirname(__file__), "..", "data", "chroma_db")
-DB_PATH = os.path.join(os.path.dirname(__file__), "..", "data", "documents.db")
-EMBED_MODEL = "sentence-transformers/all-MiniLM-L6-v2"
-SPLITTER = RecursiveCharacterTextSplitter(chunk_size=500, chunk_overlap=50)
+from src.config import (
+    ANTHROPIC_MODEL,
+    CHROMA_DIR,
+    CHUNK_OVERLAP,
+    CHUNK_SIZE,
+    DB_PATH,
+    DEFAULT_K,
+    EMBED_MODEL,
+    EXCERPT_CHARS,
+    MAX_TOKENS,
+)
+
+SPLITTER = RecursiveCharacterTextSplitter(chunk_size=CHUNK_SIZE, chunk_overlap=CHUNK_OVERLAP)
+
+# Extensions we know how to load. Anything else falls back to the content type.
+KNOWN_SUFFIXES = (".pdf", ".txt")
 
 vectorstore = None
 qa_chain = None
@@ -62,6 +76,24 @@ def log_document(filename: str, chunks: int):
         conn.close()
 
 
+def safe_display_name(filename: str | None) -> str:
+    """Reduce a client-supplied filename to something safe to store and echo.
+
+    Only ever used as a label (SQLite row, JSON response) -- never to build a
+    filesystem path.
+    """
+    name = os.path.basename((filename or "").replace("\\", "/")).strip()
+    return name or "upload"
+
+
+def suffix_for(display_name: str, content_type: str | None) -> str:
+    """Pick the temp-file extension from a whitelist, not from raw input."""
+    ext = os.path.splitext(display_name)[1].lower()
+    if ext in KNOWN_SUFFIXES:
+        return ext
+    return ".pdf" if content_type == "application/pdf" else ".txt"
+
+
 def build_chain():
     global vectorstore, qa_chain, llm
     api_key = os.getenv("ANTHROPIC_API_KEY")
@@ -71,10 +103,10 @@ def build_chain():
     embeddings = HuggingFaceEmbeddings(model_name=EMBED_MODEL)
     vectorstore = Chroma(persist_directory=CHROMA_DIR, embedding_function=embeddings)
 
-    llm = ChatAnthropic(model="claude-haiku-4-5-20251001", api_key=api_key, max_tokens=1024)
+    llm = ChatAnthropic(model=ANTHROPIC_MODEL, api_key=api_key, max_tokens=MAX_TOKENS)
     qa_chain = RetrievalQA.from_chain_type(
         llm=llm,
-        retriever=vectorstore.as_retriever(search_kwargs={"k": 4}),
+        retriever=vectorstore.as_retriever(search_kwargs={"k": DEFAULT_K}),
         return_source_documents=True,
     )
     print("QA chain ready.")
@@ -97,7 +129,7 @@ app = FastAPI(
 
 class QuestionRequest(BaseModel):
     question: str
-    k: int = 4
+    k: int = DEFAULT_K
 
 
 @app.get("/")
@@ -113,26 +145,41 @@ def health():
 
 
 @app.post("/ingest")
-async def ingest(file: UploadFile = File(...)):
-    content = await file.read()
-    suffix = ".pdf" if file.content_type == "application/pdf" else ".txt"
-    tmp_path = f"/tmp/{file.filename}"
+def ingest(file: UploadFile = File(...)):
+    # Plain `def`, not `async def`: FastAPI runs sync endpoints in a
+    # threadpool, so the blocking disk write, the PDF parse and the embedding
+    # computation all stay off the event loop. Matches /ask and /documents.
+    if vectorstore is None:
+        raise HTTPException(status_code=503, detail="Vector store not initialized.")
 
-    with open(tmp_path, "wb") as f:
-        f.write(content)
+    # The temp path is generated, never derived from the upload: a filename
+    # like "../../evil.txt" would otherwise escape /tmp, and two uploads of
+    # the same name would race on one path. The original name survives only
+    # as a display/log label.
+    display_name = safe_display_name(file.filename)
+    suffix = suffix_for(display_name, file.content_type)
 
+    fd, tmp_path = tempfile.mkstemp(suffix=suffix)
     try:
-        if suffix == ".pdf":
-            docs = PyPDFLoader(tmp_path).load()
-        else:
-            docs = TextLoader(tmp_path, encoding="utf-8").load()
-    except Exception as e:
-        raise HTTPException(status_code=400, detail=f"Could not parse file: {e}")
+        with os.fdopen(fd, "wb") as out:
+            shutil.copyfileobj(file.file, out)
 
-    chunks = SPLITTER.split_documents(docs)
-    vectorstore.add_documents(chunks)
-    log_document(file.filename, len(chunks))
-    return {"filename": file.filename, "chunks_indexed": len(chunks)}
+        try:
+            if suffix == ".pdf":
+                docs = PyPDFLoader(tmp_path).load()
+            else:
+                docs = TextLoader(tmp_path, encoding="utf-8").load()
+        except Exception as e:
+            raise HTTPException(status_code=400, detail=f"Could not parse file: {e}")
+
+        chunks = SPLITTER.split_documents(docs)
+        vectorstore.add_documents(chunks)
+        log_document(display_name, len(chunks))
+        return {"filename": display_name, "chunks_indexed": len(chunks)}
+    finally:
+        # The temp file is ours alone, so it is always safe to remove.
+        if os.path.exists(tmp_path):
+            os.unlink(tmp_path)
 
 
 @app.post("/ask")
@@ -142,12 +189,22 @@ def ask(request: QuestionRequest):
     if not request.question.strip():
         raise HTTPException(status_code=400, detail="Question cannot be empty.")
 
-    retriever = vectorstore.as_retriever(search_kwargs={"k": request.k})
-    chain = RetrievalQA.from_chain_type(
-        llm=llm,
-        retriever=retriever,
-        return_source_documents=True,
-    )
+    # Reuse the chain built once at startup for the default k. A different k
+    # genuinely needs its own retriever, so that branch rewires a chain around
+    # the *already loaded* embedding model, Chroma handle and LLM client --
+    # nothing expensive is rebuilt. Overriding qa_chain.retriever.search_kwargs
+    # in place would be cheaper still, but this endpoint is sync and therefore
+    # runs in a threadpool, so concurrent requests asking for different k
+    # values would race on that one shared dict.
+    if request.k == DEFAULT_K:
+        chain = qa_chain
+    else:
+        chain = RetrievalQA.from_chain_type(
+            llm=llm,
+            retriever=vectorstore.as_retriever(search_kwargs={"k": request.k}),
+            return_source_documents=True,
+        )
+
     result = chain.invoke({"query": request.question})
 
     source_docs = result["source_documents"]
@@ -156,7 +213,7 @@ def ask(request: QuestionRequest):
         {
             "source": doc.metadata.get("source", "unknown"),
             "page": doc.metadata.get("page", None),
-            "text": doc.page_content[:300],
+            "text": doc.page_content[:EXCERPT_CHARS],
         }
         for doc in source_docs
     ]

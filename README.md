@@ -4,6 +4,8 @@
 
 A RAG (Retrieval-Augmented Generation) pipeline that lets you upload documents and ask questions about them. Documents are chunked, embedded using a sentence transformer, and stored in ChromaDB. Questions are answered by Claude after retrieving the most relevant chunks.
 
+Retrieval is measured rather than assumed: a golden set checks recall@k and CI fails if it drops. See [Retrieval Evaluation](#retrieval-evaluation).
+
 ## How it works
 
 ```mermaid
@@ -47,8 +49,8 @@ export ANTHROPIC_API_KEY=your_key_here
 **Ingest documents**
 
 ```bash
-python src/ingest.py data/docs/my_document.pdf
-python src/ingest.py data/docs/   # ingest a whole directory
+python -m src.ingest data/docs/my_document.pdf
+python -m src.ingest data/docs/   # ingest a whole directory
 ```
 
 **Serve the API**
@@ -103,6 +105,8 @@ python -m src.evaluate_retrieval
 ```
 
 Currently scores **100% recall@4** on the 6-question golden set. `tests/test_retrieval_eval.py` enforces a minimum of 80% recall@4 in CI, so a change that quietly hurts retrieval (a chunking tweak, a different embedding model) fails the build instead of shipping unnoticed.
+
+What this number is not: the golden set is 6 short paragraphs on very different topics, one question each, which is close to the easiest retrieval task there is. It catches a regression after a chunking or embedding change. It says nothing about a large corpus of overlapping documents, which is where recall@k gets hard.
 
 ## Running Tests
 
