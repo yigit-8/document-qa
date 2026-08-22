@@ -9,6 +9,10 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   test:
     runs-on: ubuntu-latest
@@ -21,6 +25,17 @@ jobs:
           python-version: "3.11"
           cache: "pip"
 
+      # The retrieval eval pulls the sentence-transformer from the Hub on
+      # every run otherwise. Key on the model name so switching models
+      # invalidates the cache.
+      - name: Cache Hugging Face models
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/huggingface
+          key: hf-sentence-transformers-all-MiniLM-L6-v2
+          restore-keys: |
+            hf-sentence-transformers-
+
       - name: Install dependencies
         run: pip install -r requirements.txt ruff
 
@@ -28,7 +43,7 @@ jobs:
         run: ruff check src tests
 
       - name: Run tests
-        run: pytest tests/ -v --tb=short
+        run: pytest tests/ -v --tb=short --cov=src --cov-report=term-missing
         env:
           ANTHROPIC_API_KEY: test-key
 
