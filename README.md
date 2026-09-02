@@ -66,6 +66,12 @@ docker build -t document-qa .
 docker run -p 8000:8000 -e ANTHROPIC_API_KEY=your_key document-qa
 ```
 
+The image is also published to GHCR on every push to `main`, so you can skip the build:
+
+```bash
+docker run -p 8000:8000 -e ANTHROPIC_API_KEY=your_key ghcr.io/yigitliman/document-qa:latest
+```
+
 ## API Endpoints
 
 | Method | Endpoint | Description |
